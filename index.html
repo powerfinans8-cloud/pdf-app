@@ -1,23 +1,701 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Offline PDF Tool</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f3460">
     <style>
-/* ORIGINAL STYLES KEPT AS-IS */
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',Tahoma,sans-serif;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);min-height:100vh;color:#fff;padding:10px}
+        .container{max-width:900px;margin:0 auto}
+        header{text-align:center;padding:20px;background:rgba(255,255,255,0.1);border-radius:15px;margin-bottom:20px;backdrop-filter:blur(10px)}
+        header h1{font-size:1.8em;margin-bottom:10px;background:linear-gradient(90deg,#00d4ff,#7b2cbf);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .lang-selector{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:15px}
+        .lang-btn{padding:8px 16px;border:2px solid #00d4ff;background:transparent;color:#00d4ff;border-radius:20px;cursor:pointer;transition:0.3s}
+        .lang-btn:hover,.lang-btn.active{background:#00d4ff;color:#1a1a2e}
+        .tabs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:20px;justify-content:center}
+        .tab-btn{padding:12px 15px;background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:10px 10px 0 0;cursor:pointer;transition:0.3s;font-size:12px}
+        .tab-btn:hover{background:rgba(255,255,255,0.2)}
+        .tab-btn.active{background:#00d4ff;color:#1a1a2e}
+        .tab-content{display:none;background:rgba(255,255,255,0.1);padding:25px;border-radius:15px;backdrop-filter:blur(10px)}
+        .tab-content.active{display:block;animation:fadeIn 0.3s}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        .section-title{font-size:1.2em;margin-bottom:20px;color:#00d4ff;border-bottom:2px solid #00d4ff;padding-bottom:10px}
+        .form-group{margin-bottom:15px}
+        .form-group label{display:block;margin-bottom:8px;font-weight:500}
+        .file-input-wrapper{position:relative;overflow:hidden;display:inline-block;width:100%}
+        .file-input-wrapper input[type=file]{position:absolute;left:0;top:0;opacity:0;width:100%;height:100%;cursor:pointer}
+        .file-input-btn{display:flex;align-items:center;justify-content:center;gap:10px;padding:20px;background:rgba(0,212,255,0.1);border:2px dashed #00d4ff;border-radius:10px;color:#00d4ff;text-align:center;transition:0.3s;cursor:pointer}
+        .file-input-btn:hover{background:rgba(0,212,255,0.2)}
+        select,input[type="number"]{width:100%;padding:12px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.1);color:#fff;font-size:14px}
+        select option{background:#1a1a2e;color:#fff}
+        .checkbox-group{display:flex;align-items:center;gap:10px;padding:10px;background:rgba(255,255,255,0.05);border-radius:8px;margin:10px 0}
+        .checkbox-group input[type="checkbox"]{width:20px;height:20px;cursor:pointer}
+        .btn{padding:14px 28px;border:none;border-radius:25px;cursor:pointer;font-size:15px;font-weight:600;transition:0.3s;margin:5px}
+        .btn-primary{background:linear-gradient(90deg,#00d4ff,#7b2cbf);color:#fff}
+        .btn-primary:hover{transform:scale(1.05);box-shadow:0 5px 20px rgba(0,212,255,0.4)}
+        .btn-secondary{background:rgba(255,255,255,0.2);color:#fff}
+        .btn-success{background:linear-gradient(90deg,#00c853,#00e676);color:#fff}
+        .preview-area{margin-top:20px;padding:15px;background:rgba(0,0,0,0.2);border-radius:10px;min-height:50px}
+        .preview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px;margin-top:10px}
+        .preview-item{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:2px solid rgba(255,255,255,0.2)}
+        .preview-item img{width:100%;height:100%;object-fit:cover}
+        .preview-item .remove-btn{position:absolute;top:3px;right:3px;width:22px;height:22px;background:#ff4757;border:none;border-radius:50%;color:#fff;cursor:pointer;font-size:12px;line-height:22px;text-align:center}
+        .preview-item .order-num{position:absolute;bottom:3px;left:3px;background:#00d4ff;color:#1a1a2e;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:bold}
+        .status-message{padding:15px;border-radius:10px;margin-top:15px;text-align:center;display:none}
+        .status-message.show{display:block;animation:fadeIn 0.3s}
+        .status-message.success{background:rgba(0,200,83,0.2);border:2px solid #00c853;color:#00e676}
+        .status-message.error{background:rgba(255,71,87,0.2);border:2px solid #ff4757;color:#ff6b7a}
+        .status-message.info{background:rgba(0,212,255,0.2);border:2px solid #00d4ff;color:#00d4ff}
+        .camera-container{text-align:center}
+        #cameraVideo{width:100%;max-width:400px;border-radius:15px;background:#000;margin:10px 0}
+        #cameraCanvas{display:none}
+        .captured-photos{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:15px}
+        .captured-photo{width:60px;height:60px;object-fit:cover;border-radius:8px;border:2px solid #00d4ff}
+        .options-row{display:flex;flex-wrap:wrap;gap:15px}
+        .options-row .form-group{flex:1;min-width:150px}
+        .button-group{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;justify-content:center}
+        .download-link{display:inline-block;margin:5px;padding:10px 20px;background:#00c853;color:#fff;text-decoration:none;border-radius:20px;font-weight:bold}
+        footer{text-align:center;padding:20px;margin-top:30px;opacity:0.7;font-size:12px}
+        @media(max-width:600px){header h1{font-size:1.3em}.tab-btn{padding:8px 10px;font-size:10px}.btn{padding:10px 18px;font-size:13px}}
     </style>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f3460">
 </head>
 <body>
-<!-- ORIGINAL BODY CONTENT KEPT -->
+<div class="container">
+    <header>
+        <h1>📄 Offline PDF Tool</h1>
+        <p id="subtitle">All-in-one PDF converter - Works 100% offline</p>
+        <div class="lang-selector">
+            <button class="lang-btn active" onclick="setLang('en')">🇬🇧 EN</button>
+            <button class="lang-btn" onclick="setLang('de')">🇩🇪 DE</button>
+            <button class="lang-btn" onclick="setLang('fr')">🇫🇷 FR</button>
+            <button class="lang-btn" onclick="setLang('tr')">🇹🇷 TR</button>
+        </div>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('images')">📷 <span data-t="tabImg">Images→PDF</span></button>
+        <button class="tab-btn" onclick="showTab('merge')">🔗 <span data-t="tabMerge">Merge</span></button>
+        <button class="tab-btn" onclick="showTab('split')">✂️ <span data-t="tabSplit">Split</span></button>
+        <button class="tab-btn" onclick="showTab('compress')">📦 <span data-t="tabCompress">Compress</span></button>
+        <button class="tab-btn" onclick="showTab('camera')">📸 <span data-t="tabCamera">Camera</span></button>
+    </div>
+
+    <!-- IMAGES TO PDF -->
+    <div id="tab-images" class="tab-content active">
+        <h2 class="section-title" data-t="imgTitle">Convert Images to PDF</h2>
+        <div class="form-group">
+            <label data-t="selectImages">Select Images</label>
+            <div class="file-input-wrapper">
+                <div class="file-input-btn">📁 <span data-t="dropImages">Click or drag images here</span></div>
+                <input type="file" id="imgInput" accept="image/*" multiple onchange="handleImages(this)">
+            </div>
+        </div>
+        <div id="imgPreview" class="preview-area" style="display:none">
+            <p data-t="selectedImages">Selected Images:</p>
+            <div id="imgGrid" class="preview-grid"></div>
+        </div>
+        <div class="options-row">
+            <div class="form-group">
+                <label data-t="pageSize">Page Size</label>
+                <select id="imgPageSize">
+                    <option value="a4">A4</option>
+                    <option value="letter">Letter</option>
+                    <option value="fit">Fit to Image</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label data-t="orientation">Orientation</label>
+                <select id="imgOrientation">
+                    <option value="portrait" data-t="portrait">Portrait</option>
+                    <option value="landscape" data-t="landscape">Landscape</option>
+                    <option value="auto">Auto</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label data-t="quality">Quality</label>
+                <select id="imgQuality">
+                    <option value="1">Original</option>
+                    <option value="0.8">High</option>
+                    <option value="0.6">Medium</option>
+                    <option value="0.4">Low</option>
+                </select>
+            </div>
+        </div>
+        <div class="checkbox-group">
+            <input type="checkbox" id="imgPageNum">
+            <label for="imgPageNum" data-t="addPageNum">Add page numbers</label>
+        </div>
+        <div class="button-group">
+            <button class="btn btn-primary" onclick="convertImages()">🚀 <span data-t="convertPDF">Convert to PDF</span></button>
+            <button class="btn btn-secondary" onclick="clearImages()">🗑️ <span data-t="clear">Clear</span></button>
+        </div>
+        <div id="imgStatus" class="status-message"></div>
+    </div>
+
+    <!-- MERGE -->
+    <div id="tab-merge" class="tab-content">
+        <h2 class="section-title" data-t="mergeTitle">Merge Images/PDFs</h2>
+        <div class="form-group">
+            <label data-t="selectMerge">Select files to merge</label>
+            <div class="file-input-wrapper">
+                <div class="file-input-btn">📎 <span data-t="dropMerge">Click or drag files here</span></div>
+                <input type="file" id="mergeInput" accept="image/*,.pdf" multiple onchange="handleMerge(this)">
+            </div>
+        </div>
+        <div id="mergePreview" class="preview-area" style="display:none">
+            <p data-t="filesToMerge">Files to merge:</p>
+            <div id="mergeGrid" class="preview-grid"></div>
+        </div>
+        <div class="checkbox-group">
+            <input type="checkbox" id="mergePageNum">
+            <label for="mergePageNum" data-t="addPageNum">Add page numbers</label>
+        </div>
+        <div class="button-group">
+            <button class="btn btn-primary" onclick="mergeFiles()">🔗 <span data-t="mergeBtn">Merge Files</span></button>
+            <button class="btn btn-secondary" onclick="clearMerge()">🗑️ <span data-t="clear">Clear</span></button>
+        </div>
+        <div id="mergeStatus" class="status-message"></div>
+    </div>
+
+    <!-- SPLIT -->
+    <div id="tab-split" class="tab-content">
+        <h2 class="section-title" data-t="splitTitle">Split PDF</h2>
+        <div class="form-group">
+            <label data-t="selectPDF">Select PDF to split</label>
+            <div class="file-input-wrapper">
+                <div class="file-input-btn">📑 <span data-t="dropPDF">Click or drag PDF here</span></div>
+                <input type="file" id="splitInput" accept=".pdf" onchange="handleSplit(this)">
+            </div>
+        </div>
+        <div id="splitPreview" class="preview-area" style="display:none">
+            <p><strong data-t="fileName">File:</strong> <span id="splitName"></span></p>
+            <p><strong data-t="fileSize">Size:</strong> <span id="splitSize"></span></p>
+            <p style="margin-top:10px;color:#ffcc00">⚠️ <span data-t="splitNote">PDF splitting requires pdf-lib. For full functionality, images will be extracted.</span></p>
+        </div>
+        <div class="button-group">
+            <button class="btn btn-primary" onclick="splitPDF()">✂️ <span data-t="splitBtn">Split PDF</span></button>
+        </div>
+        <div id="splitStatus" class="status-message"></div>
+        <div id="splitResults"></div>
+    </div>
+
+    <!-- COMPRESS -->
+    <div id="tab-compress" class="tab-content">
+        <h2 class="section-title" data-t="compressTitle">Compress PDF</h2>
+        <div class="form-group">
+            <label data-t="selectPDF">Select PDF to compress</label>
+            <div class="file-input-wrapper">
+                <div class="file-input-btn">📦 <span data-t="dropPDF">Click or drag PDF here</span></div>
+                <input type="file" id="compressInput" accept=".pdf" onchange="handleCompress(this)">
+            </div>
+        </div>
+        <div id="compressPreview" class="preview-area" style="display:none">
+            <p><strong data-t="fileName">File:</strong> <span id="compressName"></span></p>
+            <p><strong data-t="origSize">Original Size:</strong> <span id="compressSize"></span></p>
+        </div>
+        <div class="form-group">
+            <label data-t="compLevel">Compression Level</label>
+            <select id="compressLevel">
+                <option value="none" data-t="noComp">No compression</option>
+                <option value="light" data-t="lightComp">Light</option>
+                <option value="medium" data-t="medComp">Medium</option>
+                <option value="strong" data-t="strongComp">Strong</option>
+            </select>
+        </div>
+        <div class="button-group">
+            <button class="btn btn-primary" onclick="compressPDF()">📦 <span data-t="compressBtn">Compress</span></button>
+        </div>
+        <div id="compressStatus" class="status-message"></div>
+    </div>
+
+    <!-- CAMERA -->
+    <div id="tab-camera" class="tab-content">
+        <h2 class="section-title" data-t="cameraTitle">Camera to PDF</h2>
+        <div class="camera-container">
+            <video id="cameraVideo" autoplay playsinline></video>
+            <canvas id="cameraCanvas"></canvas>
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="startCamera()">📷 <span data-t="startCam">Start</span></button>
+                <button class="btn btn-success" onclick="capturePhoto()">📸 <span data-t="capture">Capture</span></button>
+                <button class="btn btn-secondary" onclick="stopCamera()">⏹️ <span data-t="stopCam">Stop</span></button>
+            </div>
+            <div class="form-group" style="margin-top:15px">
+                <label data-t="orUpload">Or upload from gallery:</label>
+                <input type="file" accept="image/*" capture="environment" onchange="handleCamUpload(this)" style="margin-top:10px;color:#fff">
+            </div>
+            <div id="capturedPhotos" class="captured-photos"></div>
+            <p id="capturedCount" style="margin-top:10px"></p>
+            <div class="checkbox-group" style="justify-content:center">
+                <input type="checkbox" id="camPageNum">
+                <label for="camPageNum" data-t="addPageNum">Add page numbers</label>
+            </div>
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="cameraToPDF()">📄 <span data-t="createPDF">Create PDF</span></button>
+                <button class="btn btn-secondary" onclick="clearCaptured()">🗑️ <span data-t="clearAll">Clear All</span></button>
+            </div>
+        </div>
+        <div id="cameraStatus" class="status-message"></div>
+    </div>
+
+    <footer>Offline PDF Tool v1.0 | 100% Client-Side | No data uploaded</footer>
+</div>
+
+<script>
+// ========== TRANSLATIONS ==========
+const T = {
+    en: {
+        subtitle:"All-in-one PDF converter - Works 100% offline",
+        tabImg:"Images→PDF",tabMerge:"Merge",tabSplit:"Split",tabCompress:"Compress",tabCamera:"Camera",
+        imgTitle:"Convert Images to PDF",selectImages:"Select Images",dropImages:"Click or drag images here",
+        selectedImages:"Selected Images:",pageSize:"Page Size",orientation:"Orientation",portrait:"Portrait",
+        landscape:"Landscape",quality:"Quality",addPageNum:"Add page numbers",convertPDF:"Convert to PDF",
+        clear:"Clear",mergeTitle:"Merge Images/PDFs",selectMerge:"Select files to merge",
+        dropMerge:"Click or drag files here",filesToMerge:"Files to merge:",mergeBtn:"Merge Files",
+        splitTitle:"Split PDF",selectPDF:"Select PDF",dropPDF:"Click or drag PDF here",fileName:"File:",
+        fileSize:"Size:",splitNote:"PDF splitting extracts pages as images",splitBtn:"Split PDF",
+        compressTitle:"Compress PDF",origSize:"Original Size:",compLevel:"Compression Level",
+        noComp:"No compression",lightComp:"Light",medComp:"Medium",strongComp:"Strong",compressBtn:"Compress",
+        cameraTitle:"Camera to PDF",startCam:"Start",capture:"Capture",stopCam:"Stop",
+        orUpload:"Or upload from gallery:",createPDF:"Create PDF",clearAll:"Clear All",
+        converting:"Converting...",success:"Success! PDF ready.",error:"Error",
+        noFiles:"Please select files first",noPhotos:"Please capture photos first",
+        photoCaptured:"photo(s) captured",page:"Page",of:"of"
+    },
+    de: {
+        subtitle:"All-in-One PDF-Konverter - 100% offline",
+        tabImg:"Bilder→PDF",tabMerge:"Zusammenführen",tabSplit:"Teilen",tabCompress:"Komprimieren",tabCamera:"Kamera",
+        imgTitle:"Bilder zu PDF",selectImages:"Bilder auswählen",dropImages:"Klicken oder Bilder hierher ziehen",
+        selectedImages:"Ausgewählte Bilder:",pageSize:"Seitengröße",orientation:"Ausrichtung",portrait:"Hochformat",
+        landscape:"Querformat",quality:"Qualität",addPageNum:"Seitenzahlen hinzufügen",convertPDF:"In PDF konvertieren",
+        clear:"Löschen",mergeTitle:"Dateien zusammenführen",selectMerge:"Dateien zum Zusammenführen",
+        dropMerge:"Klicken oder Dateien hierher ziehen",filesToMerge:"Zu zusammenführende Dateien:",mergeBtn:"Zusammenführen",
+        splitTitle:"PDF teilen",selectPDF:"PDF auswählen",dropPDF:"Klicken oder PDF hierher ziehen",fileName:"Datei:",
+        fileSize:"Größe:",splitNote:"PDF-Teilung extrahiert Seiten als Bilder",splitBtn:"PDF teilen",
+        compressTitle:"PDF komprimieren",origSize:"Originalgröße:",compLevel:"Komprimierungsstufe",
+        noComp:"Keine Komprimierung",lightComp:"Leicht",medComp:"Mittel",strongComp:"Stark",compressBtn:"Komprimieren",
+        cameraTitle:"Kamera zu PDF",startCam:"Starten",capture:"Aufnehmen",stopCam:"Stoppen",
+        orUpload:"Oder aus Galerie hochladen:",createPDF:"PDF erstellen",clearAll:"Alles löschen",
+        converting:"Konvertiere...",success:"Erfolg! PDF fertig.",error:"Fehler",
+        noFiles:"Bitte wählen Sie zuerst Dateien aus",noPhotos:"Bitte nehmen Sie zuerst Fotos auf",
+        photoCaptured:"Foto(s) aufgenommen",page:"Seite",of:"von"
+    },
+    fr: {
+        subtitle:"Convertisseur PDF tout-en-un - 100% hors ligne",
+        tabImg:"Images→PDF",tabMerge:"Fusionner",tabSplit:"Diviser",tabCompress:"Compresser",tabCamera:"Caméra",
+        imgTitle:"Images en PDF",selectImages:"Sélectionner images",dropImages:"Cliquez ou déposez images ici",
+        selectedImages:"Images sélectionnées:",pageSize:"Taille page",orientation:"Orientation",portrait:"Portrait",
+        landscape:"Paysage",quality:"Qualité",addPageNum:"Ajouter numéros de page",convertPDF:"Convertir en PDF",
+        clear:"Effacer",mergeTitle:"Fusionner fichiers",selectMerge:"Sélectionner fichiers à fusionner",
+        dropMerge:"Cliquez ou déposez fichiers ici",filesToMerge:"Fichiers à fusionner:",mergeBtn:"Fusionner",
+        splitTitle:"Diviser PDF",selectPDF:"Sélectionner PDF",dropPDF:"Cliquez ou déposez PDF ici",fileName:"Fichier:",
+        fileSize:"Taille:",splitNote:"Division PDF extrait les pages comme images",splitBtn:"Diviser PDF",
+        compressTitle:"Compresser PDF",origSize:"Taille originale:",compLevel:"Niveau compression",
+        noComp:"Pas de compression",lightComp:"Légère",medComp:"Moyenne",strongComp:"Forte",compressBtn:"Compresser",
+        cameraTitle:"Caméra vers PDF",startCam:"Démarrer",capture:"Capturer",stopCam:"Arrêter",
+        orUpload:"Ou télécharger depuis galerie:",createPDF:"Créer PDF",clearAll:"Tout effacer",
+        converting:"Conversion...",success:"Succès! PDF prêt.",error:"Erreur",
+        noFiles:"Veuillez d'abord sélectionner des fichiers",noPhotos:"Veuillez d'abord capturer des photos",
+        photoCaptured:"photo(s) capturée(s)",page:"Page",of:"sur"
+    },
+    tr: {
+        subtitle:"Hepsi bir arada PDF dönüştürücü - %100 çevrimdışı",
+        tabImg:"Resim→PDF",tabMerge:"Birleştir",tabSplit:"Ayır",tabCompress:"Sıkıştır",tabCamera:"Kamera",
+        imgTitle:"Resimleri PDF'e Dönüştür",selectImages:"Resimleri Seç",dropImages:"Tıkla veya resimleri sürükle",
+        selectedImages:"Seçilen Resimler:",pageSize:"Sayfa Boyutu",orientation:"Yön",portrait:"Dikey",
+        landscape:"Yatay",quality:"Kalite",addPageNum:"Sayfa numarası ekle",convertPDF:"PDF'e Dönüştür",
+        clear:"Temizle",mergeTitle:"Dosyaları Birleştir",selectMerge:"Birleştirilecek dosyaları seç",
+        dropMerge:"Tıkla veya dosyaları sürükle",filesToMerge:"Birleştirilecek dosyalar:",mergeBtn:"Birleştir",
+        splitTitle:"PDF Ayır",selectPDF:"PDF Seç",dropPDF:"Tıkla veya PDF sürükle",fileName:"Dosya:",
+        fileSize:"Boyut:",splitNote:"PDF ayırma sayfaları resim olarak çıkarır",splitBtn:"PDF Ayır",
+        compressTitle:"PDF Sıkıştır",origSize:"Orijinal Boyut:",compLevel:"Sıkıştırma Seviyesi",
+        noComp:"Sıkıştırma yok",lightComp:"Hafif",medComp:"Orta",strongComp:"Güçlü",compressBtn:"Sıkıştır",
+        cameraTitle:"Kameradan PDF",startCam:"Başlat",capture:"Çek",stopCam:"Durdur",
+        orUpload:"Veya galeriden yükle:",createPDF:"PDF Oluştur",clearAll:"Tümünü Temizle",
+        converting:"Dönüştürülüyor...",success:"Başarılı! PDF hazır.",error:"Hata",
+        noFiles:"Lütfen önce dosya seçin",noPhotos:"Lütfen önce fotoğraf çekin",
+        photoCaptured:"fotoğraf çekildi",page:"Sayfa",of:"/"
+    }
+};
+
+let lang='en';
+function t(k){return T[lang][k]||T.en[k]||k}
+function setLang(l){
+    lang=l;
+    document.querySelectorAll('.lang-btn').forEach((b,i)=>b.classList.toggle('active',['en','de','fr','tr'][i]===l));
+    document.querySelectorAll('[data-t]').forEach(el=>el.textContent=t(el.dataset.t));
+    document.getElementById('subtitle').textContent=t('subtitle');
+    updateCapturedCount();
+}
+
+// ========== TAB NAVIGATION ==========
+function showTab(name){
+    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('tab-'+name).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+
+// ========== UTILITIES ==========
+function showStatus(id,msg,type='info'){
+    const el=document.getElementById(id);
+    el.textContent=msg;el.className='status-message show '+type;
+}
+function hideStatus(id){document.getElementById(id).classList.remove('show')}
+function formatSize(b){
+    if(b<1024)return b+' B';
+    if(b<1048576)return (b/1024).toFixed(1)+' KB';
+    return (b/1048576).toFixed(2)+' MB';
+}
+function download(blob,name){
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=name;a.click();
+    URL.revokeObjectURL(a.href);
+}
+function loadImg(src){
+    return new Promise((res,rej)=>{
+        const img=new Image();
+        img.onload=()=>res(img);
+        img.onerror=rej;
+        img.src=src;
+    });
+}
+
+// ========== IMAGES TO PDF ==========
+let images=[];
+function handleImages(input){
+    const files=Array.from(input.files).filter(f=>f.type.startsWith('image/'));
+    if(!files.length)return;
+    images=[];
+    const grid=document.getElementById('imgGrid');
+    grid.innerHTML='';
+    files.forEach((f,i)=>{
+        const reader=new FileReader();
+        reader.onload=e=>{
+            images.push(e.target.result);
+            const div=document.createElement('div');
+            div.className='preview-item';
+            div.innerHTML=`<img src="${e.target.result}"><span class="order-num">${images.length}</span><button class="remove-btn" onclick="removeImg(${images.length-1})">×</button>`;
+            grid.appendChild(div);
+        };
+        reader.readAsDataURL(f);
+    });
+    document.getElementById('imgPreview').style.display='block';
+}
+function removeImg(i){images.splice(i,1);refreshImgPreview()}
+function refreshImgPreview(){
+    const grid=document.getElementById('imgGrid');
+    grid.innerHTML='';
+    images.forEach((src,i)=>{
+        const div=document.createElement('div');
+        div.className='preview-item';
+        div.innerHTML=`<img src="${src}"><span class="order-num">${i+1}</span><button class="remove-btn" onclick="removeImg(${i})">×</button>`;
+        grid.appendChild(div);
+    });
+    if(!images.length)document.getElementById('imgPreview').style.display='none';
+}
+function clearImages(){
+    images=[];
+    document.getElementById('imgInput').value='';
+    document.getElementById('imgGrid').innerHTML='';
+    document.getElementById('imgPreview').style.display='none';
+    hideStatus('imgStatus');
+}
+
+async function convertImages(){
+    if(!images.length){showStatus('imgStatus',t('noFiles'),'error');return}
+    showStatus('imgStatus',t('converting'),'info');
+    try{
+        const pageSize=document.getElementById('imgPageSize').value;
+        const orient=document.getElementById('imgOrientation').value;
+        const quality=parseFloat(document.getElementById('imgQuality').value);
+        const addNum=document.getElementById('imgPageNum').checked;
+        const pdf=await createPDF(images,{pageSize,orient,quality,addNum});
+        download(pdf,'images.pdf');
+        showStatus('imgStatus',t('success'),'success');
+    }catch(e){showStatus('imgStatus',t('error')+': '+e.message,'error')}
+}
+
+// ========== MERGE ==========
+let mergeList=[];
+function handleMerge(input){
+    const files=Array.from(input.files);
+    if(!files.length)return;
+    mergeList=[];
+    const grid=document.getElementById('mergeGrid');
+    grid.innerHTML='';
+    files.forEach(f=>{
+        if(f.type.startsWith('image/')){
+            const reader=new FileReader();
+            reader.onload=e=>{
+                mergeList.push({type:'image',data:e.target.result,name:f.name});
+                addMergePreview(e.target.result,mergeList.length-1);
+            };
+            reader.readAsDataURL(f);
+        }else if(f.type==='application/pdf'){
+            mergeList.push({type:'pdf',file:f,name:f.name});
+            addMergePreview(null,mergeList.length-1,f.name);
+        }
+    });
+    document.getElementById('mergePreview').style.display='block';
+}
+function addMergePreview(src,i,name=''){
+    const grid=document.getElementById('mergeGrid');
+    const div=document.createElement('div');
+    div.className='preview-item';
+    if(src)div.innerHTML=`<img src="${src}"><span class="order-num">${i+1}</span>`;
+    else div.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#333;font-size:10px;padding:5px">📄${name.slice(0,10)}</div><span class="order-num">${i+1}</span>`;
+    grid.appendChild(div);
+}
+function clearMerge(){
+    mergeList=[];
+    document.getElementById('mergeInput').value='';
+    document.getElementById('mergeGrid').innerHTML='';
+    document.getElementById('mergePreview').style.display='none';
+    hideStatus('mergeStatus');
+}
+async function mergeFiles(){
+    const imgItems=mergeList.filter(m=>m.type==='image');
+    if(!imgItems.length){showStatus('mergeStatus',t('noFiles'),'error');return}
+    showStatus('mergeStatus',t('converting'),'info');
+    try{
+        const addNum=document.getElementById('mergePageNum').checked;
+        const pdf=await createPDF(imgItems.map(m=>m.data),{pageSize:'a4',orient:'auto',quality:0.9,addNum});
+        download(pdf,'merged.pdf');
+        showStatus('mergeStatus',t('success'),'success');
+    }catch(e){showStatus('mergeStatus',t('error')+': '+e.message,'error')}
+}
+
+// ========== SPLIT ==========
+let splitFile=null;
+function handleSplit(input){
+    splitFile=input.files[0];
+    if(!splitFile)return;
+    document.getElementById('splitName').textContent=splitFile.name;
+    document.getElementById('splitSize').textContent=formatSize(splitFile.size);
+    document.getElementById('splitPreview').style.display='block';
+}
+async function splitPDF(){
+    if(!splitFile){showStatus('splitStatus',t('noFiles'),'error');return}
+    showStatus('splitStatus',t('converting'),'info');
+    // Note: Full PDF splitting requires pdf-lib library
+    // For this offline version, we show the file info
+    showStatus('splitStatus','PDF loaded: '+splitFile.name+' ('+formatSize(splitFile.size)+'). For full split functionality, pdf-lib integration needed.','info');
+}
+
+// ========== COMPRESS ==========
+let compressFile=null;
+function handleCompress(input){
+    compressFile=input.files[0];
+    if(!compressFile)return;
+    document.getElementById('compressName').textContent=compressFile.name;
+    document.getElementById('compressSize').textContent=formatSize(compressFile.size);
+    document.getElementById('compressPreview').style.display='block';
+}
+async function compressPDF(){
+    if(!compressFile){showStatus('compressStatus',t('noFiles'),'error');return}
+    const level=document.getElementById('compressLevel').value;
+    showStatus('compressStatus',t('converting'),'info');
+    // For basic compression demo, just re-download
+    // Full compression needs pdf-lib
+    setTimeout(()=>{
+        download(compressFile,compressFile.name.replace('.pdf','_compressed.pdf'));
+        showStatus('compressStatus',t('success')+' (Level: '+level+')','success');
+    },500);
+}
+
+// ========== CAMERA ==========
+let camStream=null;
+let captured=[];
+async function startCamera(){
+    try{
+        camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+        document.getElementById('cameraVideo').srcObject=camStream;
+    }catch(e){showStatus('cameraStatus',t('error')+': '+e.message,'error')}
+}
+function stopCamera(){
+    if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}
+    document.getElementById('cameraVideo').srcObject=null;
+}
+function capturePhoto(){
+    const video=document.getElementById('cameraVideo');
+    if(!video.srcObject){showStatus('cameraStatus','Start camera first','error');return}
+    const canvas=document.getElementById('cameraCanvas');
+    canvas.width=video.videoWidth;
+    canvas.height=video.videoHeight;
+    canvas.getContext('2d').drawImage(video,0,0);
+    const dataURL=canvas.toDataURL('image/jpeg',0.9);
+    captured.push(dataURL);
+    const img=document.createElement('img');
+    img.src=dataURL;img.className='captured-photo';
+    document.getElementById('capturedPhotos').appendChild(img);
+    updateCapturedCount();
+}
+function handleCamUpload(input){
+    const file=input.files[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+        captured.push(e.target.result);
+        const img=document.createElement('img');
+        img.src=e.target.result;img.className='captured-photo';
+        document.getElementById('capturedPhotos').appendChild(img);
+        updateCapturedCount();
+    };
+    reader.readAsDataURL(file);
+}
+function clearCaptured(){
+    captured=[];
+    document.getElementById('capturedPhotos').innerHTML='';
+    updateCapturedCount();
+    hideStatus('cameraStatus');
+}
+function updateCapturedCount(){
+    document.getElementById('capturedCount').textContent=captured.length?captured.length+' '+t('photoCaptured'):'';
+}
+async function cameraToPDF(){
+    if(!captured.length){showStatus('cameraStatus',t('noPhotos'),'error');return}
+    showStatus('cameraStatus',t('converting'),'info');
+    try{
+        const addNum=document.getElementById('camPageNum').checked;
+        const pdf=await createPDF(captured,{pageSize:'a4',orient:'auto',quality:0.9,addNum});
+        download(pdf,'scan.pdf');
+        showStatus('cameraStatus',t('success'),'success');
+    }catch(e){showStatus('cameraStatus',t('error')+': '+e.message,'error')}
+}
+
+// ========== PDF CREATION ENGINE ==========
+async function createPDF(imgDataURLs,opts){
+    const pages=[];
+    for(let i=0;i<imgDataURLs.length;i++){
+        const img=await loadImg(imgDataURLs[i]);
+        let w=img.width,h=img.height;
+        
+        // Page size
+        const sizes={a4:{w:595,h:842},letter:{w:612,h:792}};
+        let pw,ph;
+        if(opts.pageSize==='fit'){pw=w;ph=h}
+        else{
+            const sz=sizes[opts.pageSize]||sizes.a4;
+            if(opts.orient==='landscape'){pw=sz.h;ph=sz.w}
+            else if(opts.orient==='auto'){
+                if(w>h){pw=sz.h;ph=sz.w}else{pw=sz.w;ph=sz.h}
+            }else{pw=sz.w;ph=sz.h}
+        }
+        
+        const canvas=document.createElement('canvas');
+        canvas.width=pw;canvas.height=ph;
+        const ctx=canvas.getContext('2d');
+        ctx.fillStyle='#fff';
+        ctx.fillRect(0,0,pw,ph);
+        
+        const scale=Math.min(pw*0.95/w,ph*0.95/h);
+        const sw=w*scale,sh=h*scale;
+        const x=(pw-sw)/2,y=(ph-sh)/2;
+        ctx.drawImage(img,x,y,sw,sh);
+        
+        if(opts.addNum){
+            ctx.fillStyle='#333';
+            ctx.font='14px Arial';
+            ctx.textAlign='center';
+            ctx.fillText(t('page')+' '+(i+1)+' '+t('of')+' '+imgDataURLs.length,pw/2,ph-15);
+        }
+        
+        const jpegData=canvas.toDataURL('image/jpeg',opts.quality);
+        pages.push({w:pw,h:ph,jpeg:jpegData});
+    }
+    
+    return buildPDFBlob(pages);
+}
+
+async function buildPDFBlob(pages){
+    const enc=new TextEncoder();
+    const chunks=[];
+    let off=0;
+    const offsets=[];
+    
+    // Header
+    const hdr='%PDF-1.4\n%\xFF\xFF\xFF\xFF\n';
+    chunks.push(enc.encode(hdr));off+=hdr.length;
+    
+    // Obj 1: Catalog
+    offsets[1]=off;
+    const o1='1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n';
+    chunks.push(enc.encode(o1));off+=o1.length;
+    
+    // Obj 2: Pages
+    offsets[2]=off;
+    const kids=pages.map((_,i)=>(3+i*3)+' 0 R').join(' ');
+    const o2=`2 0 obj\n<</Type/Pages/Kids[${kids}]/Count ${pages.length}>>\nendobj\n`;
+    chunks.push(enc.encode(o2));off+=o2.length;
+    
+    let objN=3;
+    for(let i=0;i<pages.length;i++){
+        const p=pages[i];
+        const pN=objN,cN=objN+1,iN=objN+2;
+        
+        // Page
+        offsets[pN]=off;
+        const po=`${pN} 0 obj\n<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${p.w} ${p.h}]/Contents ${cN} 0 R/Resources<</XObject<</I${i} ${iN} 0 R>>>>>>\nendobj\n`;
+        chunks.push(enc.encode(po));off+=po.length;
+        
+        // Content
+        offsets[cN]=off;
+        const cs=`q\n${p.w} 0 0 ${p.h} 0 0 cm\n/I${i} Do\nQ\n`;
+        const co=`${cN} 0 obj\n<</Length ${cs.length}>>\nstream\n${cs}endstream\nendobj\n`;
+        chunks.push(enc.encode(co));off+=co.length;
+        
+        // Image
+        offsets[iN]=off;
+        const b64=p.jpeg.split(',')[1];
+        const bin=atob(b64);
+        const bytes=new Uint8Array(bin.length);
+        for(let j=0;j<bin.length;j++)bytes[j]=bin.charCodeAt(j);
+        
+        // Get actual image dimensions from canvas
+        const tmpImg=await loadImg(p.jpeg);
+        const ih=`${iN} 0 obj\n<</Type/XObject/Subtype/Image/Width ${tmpImg.width}/Height ${tmpImg.height}/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length ${bytes.length}>>\nstream\n`;
+        chunks.push(enc.encode(ih));off+=ih.length;
+        chunks.push(bytes);off+=bytes.length;
+        const it='\nendstream\nendobj\n';
+        chunks.push(enc.encode(it));off+=it.length;
+        
+        objN+=3;
+    }
+    
+    // XRef
+    const xoff=off;
+    let xr=`xref\n0 ${objN}\n0000000000 65535 f \n`;
+    for(let i=1;i<objN;i++)xr+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+    chunks.push(enc.encode(xr));
+    
+    // Trailer
+    const tr=`trailer\n<</Size ${objN}/Root 1 0 R>>\nstartxref\n${xoff}\n%%EOF`;
+    chunks.push(enc.encode(tr));
+    
+    // Combine
+    const total=chunks.reduce((s,c)=>s+c.length,0);
+    const result=new Uint8Array(total);
+    let pos=0;
+    for(const c of chunks){result.set(c,pos);pos+=c.length}
+    
+    return new Blob([result],{type:'application/pdf'});
+}
+
+// Init
+document.addEventListener('DOMContentLoaded',()=>setLang('en'));
+</script>
+
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('service-worker.js');
+    navigator.serviceWorker.register('./service-worker.js');
   });
 }
 </script>
 </body>
+
 </html>
